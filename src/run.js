@@ -1,17 +1,13 @@
 #!/usr/bin/env node
-import path from 'path';
-import { fileURLToPath } from 'url';
 import { run } from './index.js';
 
-const dirname = path.dirname(fileURLToPath(import.meta.url));
+const working_directory = process.cwd(); // broken in subdirectories??
+const spec_files = process.argv.filter((arg) => arg.endsWith('spec.js'));
 
-if (import.meta.url.endsWith(process.argv[1])) {
-  const spec_files = process.argv.filter((arg) => arg.endsWith('spec.js'));
-
-  // let the magic happen!
-  for (const spec_file of spec_files) {
-    await import(path.normalize(`${dirname}/../${spec_file}`));
-  }
-
-  await run();
+for (const spec_file of spec_files) {
+  const import_path = `${working_directory}/${spec_file}`;
+  await import(import_path);
 }
+
+// let the magic happen!
+await run();

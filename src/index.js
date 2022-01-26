@@ -1,80 +1,142 @@
 import path from 'path';
 import fsp from 'fs/promises';
+import { AsyncLocalStorage } from 'async_hooks';
+import { filter, groupBy } from 'lodash-es';
 import quibble from 'quibble';
+import treeify from 'treeify';
 
-const specs = [];
-let before_all = Function.prototype;
-let before_each = Function.prototype;
-let after_each = Function.prototype;
-let after_all = Function.prototype;
+const asyncLocalStorage = new AsyncLocalStorage();
+export const specs = [];
 
-export const beforeAll = async (fn) => (before_all = fn);
-export const beforeEach = async (fn) => (before_each = fn);
-export const afterEach = async (fn) => (after_each = fn);
-export const afterAll = async (fn) => (after_all = fn);
+const before_alls = [];
+const before_eaches = [];
+const after_eaches = [];
+const after_alls = [];
 
-export const test = async (spec_name, fn) => specs.push({ spec_name, fn });
-test.focus = async (spec_name, fn) => specs.push({ spec_name, fn, focus: true });
-test.skip = async (spec_name, fn) => specs.push({ spec_name, fn, skip: true });
+export const beforeAll = async (fn) => {
+  const { describe_name = 'default' } = asyncLocalStorage.getStore() || {};
+  const file_name = getCallerFile();
+  before_alls.push({ file_name, describe_name, fn });
+};
+
+export const beforeEach = async (fn) => {
+  const { describe_name = 'default' } = asyncLocalStorage.getStore() || {};
+  const file_name = getCallerFile();
+  before_eaches.push({ file_name, describe_name, fn });
+};
+
+export const afterEach = async (fn) => {
+  const { describe_name = 'default' } = asyncLocalStorage.getStore() || {};
+  const file_name = getCallerFile();
+  after_eaches.push({ file_name, describe_name, fn });
+};
+
+export const afterAll = async (fn) => {
+  const { describe_name = 'default' } = asyncLocalStorage.getStore() || {};
+  const file_name = getCallerFile();
+  after_alls.push({ file_name, describe_name, fn });
+};
+
+export const test = async (spec_name, fn) => {
+  const { describe_name = 'default' } = asyncLocalStorage.getStore() || {};
+  const file_name = getCallerFile();
+  specs.push({ file_name, describe_name, spec_name, fn });
+};
+
+test.focus = async (spec_name, fn) => {
+  const { describe_name = 'default' } = asyncLocalStorage.getStore() || {};
+  const file_name = getCallerFile();
+  specs.push({ file_name, describe_name, spec_name, fn, focus: true });
+};
+
+test.skip = async (spec_name, fn) => {
+  const { describe_name = 'default' } = asyncLocalStorage.getStore() || {};
+  const file_name = getCallerFile();
+  specs.push({ file_name, describe_name, spec_name, fn, skip: true });
+};
+
+export const it = test;
+
+export const describe = (describe_name, fn) => asyncLocalStorage.run({ describe_name }, fn);
 
 export const run = async () => {
-  await before_all();
+  const describes = groupBy(specs, 'describe_name');
+
+  const report_tree = {};
+
+  for (const [describe_name, specs] of Object.entries(describes)) {
+    const before_all = filter(before_alls, { describe_name }).map((v) => v.fn);
+    const before_each = filter(before_eaches, { describe_name }).map((v) => v.fn);
+    const after_each = filter(after_eaches, { describe_name }).map((v) => v.fn);
+    const after_all = filter(after_alls, { describe_name }).map((v) => v.fn);
+    await runDescribe(specs, { before_all, before_each, after_each, after_all });
+
+    const report_branch = { [describe_name]: {} };
+
+    for (const spec of specs) {
+      if (!spec.error) report_branch[describe_name][spec.spec_name] = `✅`;
+      else report_branch[describe_name][spec.spec_name] = `❌ ${spec.error.stack}`;
+    }
+
+    report_tree[specs[0].file_name] = report_tree[specs[0].file_name] || {};
+    Object.assign(report_tree[specs[0].file_name], report_branch);
+  }
+
+  console.log(treeify.asTree(report_tree, true));
+
+  const exit_code = specs.find((spec) => spec.error) ? 1 : 0;
+  process.exit(exit_code);
+};
+
+export const runDescribe = async (specs, { before_all, before_each, after_each, after_all }) => {
+  for (const fn of before_all) await fn();
 
   let unskipped_focused_specs = specs.filter((spec) => !spec.skip);
   if (specs.find((spec) => spec.focus)) unskipped_focused_specs = specs.filter((spec) => spec.focus);
 
   for (const spec of unskipped_focused_specs) {
-    const { spec_name, fn } = spec;
+    const { fn } = spec;
 
     try {
-      await before_each();
+      for (const fn of before_each) await fn();
       await fn();
     } catch (error) {
-      console.error(`Spec ${spec_name} failed:`);
-      console.error(error);
-      spec.failure = error;
+      spec.error = error;
     } finally {
-      await after_each();
+      for (const fn of after_each) await fn();
     }
   }
 
-  await after_all();
+  for (const fn of after_all) await fn();
 };
 
 export const mockModule = async (import_path, default_import, named_imports) => {
-  if (!import_path.startsWith('/')) throw new Error(`import_path must be an absolute path.`);
+  // if not an absolute path we must import file from proper folder which is the one of the caller
+  if (!import_path.startsWith('/')) {
+    const callerFile = getCallerFile();
+    const folderScope = path.dirname(callerFile);
+    import_path = path.normalize(`${folderScope}/${import_path}`);
+  }
 
   // lookup for import in __mocks__ folder
-  const useMockFolderFile = await (async (import_path) => {
-    try {
-      const mock_path = path.dirname(import_path) + '/__mocks__/' + path.basename(import_path);
-      await fsp.access(mock_path);
-      return mock_path;
-    } catch {
-      return false;
-    }
-  })(import_path);
+  let useMockFolderFile;
+  try {
+    const mock_path = path.dirname(import_path) + '/__mocks__/' + path.basename(import_path);
+    await fsp.access(mock_path);
+    useMockFolderFile = mock_path;
+  } catch {} // eslint-disable-line
 
   // lookup for import .mock.js file
-  const useMockJSFile = await (async (import_path) => {
-    try {
-      const mock_path = path.dirname(import_path + '/') + '/' + path.basename(import_path, '.js') + '.mock.js';
-      await fsp.access(mock_path);
-      return mock_path;
-    } catch {
-      return false;
-    }
-  })(import_path);
+  let useMockJSFile;
+  try {
+    const mock_path = path.dirname(import_path + '/') + '/' + path.basename(import_path, '.js') + '.mock.js';
+    await fsp.access(mock_path);
+    useMockJSFile = mock_path;
+  } catch {} // eslint-disable-line
 
-  if (useMockJSFile) {
-    const mocked_module = await import(useMockJSFile);
+  if (useMockJSFile || useMockFolderFile) {
+    const mocked_module = await import(useMockJSFile || useMockFolderFile);
     const default_import = mocked_module.default;
-    const { default: discard, ...named_imports } = mocked_module; // eslint-disable-line
-    await quibble.esm(import_path, named_imports, default_import);
-  } else if (useMockFolderFile) {
-    const mocked_module = await import(useMockFolderFile);
-    const default_import = mocked_module.default;
-
     const { default: discard, ...named_imports } = mocked_module; // eslint-disable-line
     await quibble.esm(import_path, named_imports, default_import);
   } else {
@@ -83,3 +145,17 @@ export const mockModule = async (import_path, default_import, named_imports) => 
 };
 
 mockModule.reset = quibble.reset;
+
+export const getCallerFile = (position = 2) => {
+  if (position >= Error.stackTraceLimit)
+    throw new TypeError(`getCallerFile: "position" (${position}) must be less than "Error.stackTraceLimit" (${Error.stackTraceLimit})`);
+
+  const oldPrepareStackTrace = Error.prepareStackTrace;
+  Error.prepareStackTrace = (_, stack) => stack;
+  const stack = new Error().stack;
+  Error.prepareStackTrace = oldPrepareStackTrace;
+
+  // stack[0] holds current file => stack[1] holds file where this function was called => stack[2] holds the caller file
+  const callerFile = stack?.[position].getFileName().replace('file://', '');
+  return callerFile;
+};

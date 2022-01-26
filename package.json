@@ -4,12 +4,14 @@
   "type": "module",
   "scripts": {
     "eslint": "eslint --fix --ignore-path .gitignore",
-    "test": "node --loader=quibble test/math.spec.js"
+    "test": "node --loader=quibble src/run.js test/*.spec.js"
   },
   "dependencies": {
     "expect": "^27.4.6",
     "jest": "^27.4.7",
-    "quibble": "^0.6.8"
+    "lodash-es": "^4.17.21",
+    "quibble": "^0.6.8",
+    "treeify": "^1.1.0"
   },
   "devDependencies": {
     "eslint-config-xs": "^1.0.7"

@@ -1,8 +1,6 @@
 /* eslint-disable jest/no-standalone-expect */
-import path from 'path';
-import { fileURLToPath } from 'url';
 import expect from 'expect';
-import { test, run, beforeAll, beforeEach, afterEach, afterAll, mockModule } from '../src/index.js';
+import { test, it, describe, beforeAll, beforeEach, afterEach, afterAll, mockModule } from '../src/index.js';
 import { sum, subtract } from './math.js';
 import { MAGIC_NUMBER } from './subtract.js';
 
@@ -11,22 +9,29 @@ beforeEach(() => console.log('before'));
 afterEach(() => console.log('after'));
 afterAll(() => console.log('afterAll'));
 
-test('sum', async () => {
-  const actual = sum(1, 1);
-  const expected = 2;
-  expect(actual).toEqual(expected);
-});
+describe('math', () => {
+  beforeAll(() => console.log('beforeAll in describe'));
+  beforeEach(() => console.log('beforeEach in describe'));
+  afterEach(() => console.log('afterEach in describe'));
+  afterAll(() => console.log('afterAll in describe'));
 
-test('subtract', async () => {
-  const actual = subtract(1, 1);
-  const expected = 0;
-  expect(actual).toEqual(expected);
-  expect(MAGIC_NUMBER).toEqual(123);
+  it('sum', async () => {
+    const actual = sum(1, 1);
+    const expected = 2;
+    expect(actual).toEqual(expected);
+  });
+
+  it('subtract', async () => {
+    const actual = subtract(1, 1);
+    const expected = 0;
+    expect(actual).toEqual(expected);
+    expect(MAGIC_NUMBER).toEqual(123);
+  });
 });
 
 test('subtract mocked inline', async () => {
   // mock imports
-  await mockModule(path.dirname(fileURLToPath(import.meta.url)) + '/subtract.js', (a, b) => a * b, { MAGIC_NUMBER: 666 });
+  await mockModule('./subtract.js', (a, b) => a * b, { MAGIC_NUMBER: 666 });
 
   // import mocks
   const { subtract } = await import('./math.js');
@@ -43,7 +48,7 @@ test('subtract mocked inline', async () => {
 
 test('multiply mocked with .mock.js file', async () => {
   // mock imports
-  await mockModule(path.dirname(fileURLToPath(import.meta.url)) + '/multiply.js');
+  await mockModule('./multiply.js');
 
   // import mocks
   const { multiply } = await import('./math.js');
@@ -60,7 +65,7 @@ test('multiply mocked with .mock.js file', async () => {
 
 test('divide mocked with __mocks__ folder', async () => {
   // mock imports
-  await mockModule(path.dirname(fileURLToPath(import.meta.url)) + '/divide.js');
+  await mockModule('./divide.js');
 
   // import mocks
   const { divide } = await import('./math.js');
@@ -74,5 +79,3 @@ test('divide mocked with __mocks__ folder', async () => {
   // reset mocks
   mockModule.reset();
 });
-
-await run();

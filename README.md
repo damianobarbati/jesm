@@ -18,10 +18,16 @@ yarn test
 
 ## How to use
 
+Requirements:
+- nodejs >= 16
+
+Run spec files:
 ```sh
 yarn add --dev jesm
 NODE_OPTIONS="--loader=quibble" yarn jesm *.spec.js
 ```
+
+⚠️ Jesm command must be run in the root of the package! ⚠️ 
 
 ## References
 - <https://gils-blog.tayar.org/posts/mock-all-you-want-supporting-esm-in-testdouble-js-mocking-library/>

@@ -1,7 +1,16 @@
 {
   "name": "jesm",
+  "version": "0.0.7",
   "license": "MIT",
   "type": "module",
+  "engines": {
+    "node": ">=16.11"
+  },
+  "exports": {
+    ".": "./src/index.js",
+    "./run": "./src/run.js"
+  },
+  "bin": "./src/run.js",
   "scripts": {
     "eslint": "eslint --fix --ignore-path .gitignore",
     "test": "node --loader=quibble src/run.js test/*.spec.js"

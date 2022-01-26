@@ -16,5 +16,12 @@ yarn install
 yarn test
 ```
 
+## How to use
+
+```sh
+yarn add --dev jesm
+NODE_OPTIONS="--loader=quibble" yarn jesm *.spec.js
+```
+
 ## References
 - <https://gils-blog.tayar.org/posts/mock-all-you-want-supporting-esm-in-testdouble-js-mocking-library/>

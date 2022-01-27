@@ -59,7 +59,7 @@ export const it = test;
 
 export const describe = (describe_name, fn) => asyncLocalStorage.run({ describe_name }, fn);
 
-export const run = async () => {
+export const run = async ({ spec_name_pattern }) => {
   const describes = groupBy(specs, 'describe_name');
 
   const report_tree = {};
@@ -73,7 +73,7 @@ export const run = async () => {
 
     const report_branch = { [describe_name]: {} };
 
-    for (const spec of specs) {
+    for (const spec of specs.filter((spec) => spec.spec_name.includes(spec_name_pattern))) {
       if (!spec.error) report_branch[describe_name][spec.spec_name] = `✅`;
       else report_branch[describe_name][spec.spec_name] = `❌ ${spec.error.stack}`;
     }

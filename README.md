@@ -20,11 +20,12 @@ yarn add --dev jesm
 NODE_OPTIONS="--loader=quibble" yarn jesm *.spec.js
 ```
 
-See (math.spec.js)[./test/match.spec.js] example on how to use `mockModule`.
+See [math.spec.js](./test/match.spec.js) example on how to use `mockModule`.
 
 ## Webstorm support
 
 Copy the `.jest-run` folder inside your root before running any spec with the run/debug button.
+Remember to properly set your `NODE_ENV=xxx` variable.
 
 ## References
 - <https://gils-blog.tayar.org/posts/mock-all-you-want-supporting-esm-in-testdouble-js-mocking-library/>

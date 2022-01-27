@@ -1,25 +1,18 @@
 # Jesm
 
-Repro showing how to test and mock native ESM, jest-free.
+Native ESM testing and mocking, jest-free:
+- to mock ESM modules we are using [quibble](https://www.npmjs.com/package/quibble)
+- to use additional features like spies and stubs you can use [sinon](https://sinonjs.org/releases/v12.0.1/)
+- to use assertions you can use [expect](https://www.npmjs.com/package/expect)
 
-The stupid [src/index.js](src/index.js) can easily be turned into an NPM package. 
-
-To mock ESM modules we are using [quibble](https://www.npmjs.com/package/quibble).
-
-To use additional features like spies and stubs we can use [sinon](https://sinonjs.org/releases/v12.0.1/). 
-
-## How to try
-
-```sh
-nvm install
-yarn install
-yarn test
-```
+Assumptions:
+- nodejs >= 16 is required
+- only `test`, `it`, `describe`, `beforeAll`, `beforeEach`, `afterEach`, `afterAll`, `mockModule` are supported (exported)
+- only `testNamePattern`, `runTestsByPath` flags are supported
+- only sequential running of test is supported (implicit `--runInBand`)
+- **jesm** command must be run in the root of the package
 
 ## How to use
-
-Requirements:
-- nodejs >= 16
 
 Run spec files:
 ```sh
@@ -27,7 +20,11 @@ yarn add --dev jesm
 NODE_OPTIONS="--loader=quibble" yarn jesm *.spec.js
 ```
 
-⚠️ Jesm command must be run in the root of the package! ⚠️ 
+See (math.spec.js)[./test/match.spec.js] example on how to use `mockModule`.
+
+## Webstorm support
+
+Copy the `.jest-run` folder inside your root before running any spec with the run/debug button.
 
 ## References
 - <https://gils-blog.tayar.org/posts/mock-all-you-want-supporting-esm-in-testdouble-js-mocking-library/>

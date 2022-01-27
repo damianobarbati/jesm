@@ -59,7 +59,7 @@ export const it = test;
 
 export const describe = (describe_name, fn) => asyncLocalStorage.run({ describe_name }, fn);
 
-export const run = async ({ spec_name_pattern }) => {
+export const run = async ({ testNamePattern }) => {
   const describes = groupBy(specs, 'describe_name');
 
   const report_tree = {};
@@ -69,13 +69,21 @@ export const run = async ({ spec_name_pattern }) => {
     const before_each = filter(before_eaches, { describe_name }).map((v) => v.fn);
     const after_each = filter(after_eaches, { describe_name }).map((v) => v.fn);
     const after_all = filter(after_alls, { describe_name }).map((v) => v.fn);
-    await runDescribe(specs, { before_all, before_each, after_each, after_all });
+
+    const specs_to_run = specs.filter(spec => {
+      const describe_spec_name = `${spec.describe_name} ${spec.spec_name}`;
+      const result = describe_spec_name.match(new RegExp(testNamePattern));
+      return result;
+    });
+
+    await runDescribe(specs_to_run, { before_all, before_each, after_each, after_all });
 
     const report_branch = { [describe_name]: {} };
 
-    for (const spec of specs.filter((spec) => spec.spec_name.includes(spec_name_pattern))) {
-      if (!spec.error) report_branch[describe_name][spec.spec_name] = `✅`;
-      else report_branch[describe_name][spec.spec_name] = `❌ ${spec.error.stack}`;
+    for (const spec of specs) {
+
+      if (spec.success) report_branch[describe_name][spec.spec_name] = `✅`;
+      else if (spec.error) report_branch[describe_name][spec.spec_name] = `❌ ${spec.error.stack}`;
     }
 
     report_tree[specs[0].file_name] = report_tree[specs[0].file_name] || {};
@@ -100,6 +108,7 @@ export const runDescribe = async (specs, { before_all, before_each, after_each, 
     try {
       for (const fn of before_each) await fn();
       await fn();
+      spec.success = true;
     } catch (error) {
       spec.error = error;
     } finally {

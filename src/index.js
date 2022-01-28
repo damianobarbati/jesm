@@ -69,7 +69,7 @@ export const run = async ({ testNamePattern, runTestsByPath }) => {
     const after_all = filter(after_alls, { describe_name }).map((v) => v.fn);
 
     const specs_to_run = specs.filter((spec) => {
-      const describe_spec_name = `${spec.describe_name} ${spec.spec_name}`;
+      const describe_spec_name = spec.describe_name !== 'default' ? `${spec.describe_name} ${spec.spec_name}` : spec.spec_name;
       const testNamePattern_is_respected = testNamePattern ? describe_spec_name.match(new RegExp(testNamePattern)) : true;
       const runTestsByPath_is_respected = runTestsByPath ? spec.file_name.match(new RegExp(runTestsByPath)) : true;
       const result = testNamePattern_is_respected && runTestsByPath_is_respected;

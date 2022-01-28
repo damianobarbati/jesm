@@ -12,7 +12,7 @@ for (const spec_file of spec_files) {
 
 // let the magic happen!
 const {
-  argv: { testNamePattern, runTestsByPath },
+  argv: { t, testNamePattern, runTestsByPath },
 } = yargs(process.argv.slice(2));
 
-await run({ testNamePattern, runTestsByPath });
+await run({ testNamePattern: t ?? testNamePattern, runTestsByPath });

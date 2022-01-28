@@ -1,7 +1,7 @@
 import path from 'path';
 import fsp from 'fs/promises';
 import { AsyncLocalStorage } from 'async_hooks';
-import { filter, groupBy } from 'lodash-es';
+import { set, filter, groupBy } from 'lodash-es';
 import quibble from 'quibble';
 import treeify from 'treeify';
 
@@ -59,10 +59,8 @@ export const it = test;
 
 export const describe = (describe_name, fn) => asyncLocalStorage.run({ describe_name }, fn);
 
-export const run = async ({ testNamePattern }) => {
+export const run = async ({ testNamePattern, runTestsByPath }) => {
   const describes = groupBy(specs, 'describe_name');
-
-  const report_tree = {};
 
   for (const [describe_name, specs] of Object.entries(describes)) {
     const before_all = filter(before_alls, { describe_name }).map((v) => v.fn);
@@ -70,27 +68,26 @@ export const run = async ({ testNamePattern }) => {
     const after_each = filter(after_eaches, { describe_name }).map((v) => v.fn);
     const after_all = filter(after_alls, { describe_name }).map((v) => v.fn);
 
-    const specs_to_run = specs.filter(spec => {
+    const specs_to_run = specs.filter((spec) => {
       const describe_spec_name = `${spec.describe_name} ${spec.spec_name}`;
-      const result = describe_spec_name.match(new RegExp(testNamePattern));
+      const testNamePattern_is_respected = testNamePattern ? describe_spec_name.match(new RegExp(testNamePattern)) : true;
+      const runTestsByPath_is_respected = runTestsByPath ? spec.file_name.match(new RegExp(runTestsByPath)) : true;
+      const result = testNamePattern_is_respected && runTestsByPath_is_respected;
       return result;
     });
 
     await runDescribe(specs_to_run, { before_all, before_each, after_each, after_all });
-
-    const report_branch = { [describe_name]: {} };
-
-    for (const spec of specs) {
-
-      if (spec.success) report_branch[describe_name][spec.spec_name] = `✅`;
-      else if (spec.error) report_branch[describe_name][spec.spec_name] = `❌ ${spec.error.stack}`;
-    }
-
-    report_tree[specs[0].file_name] = report_tree[specs[0].file_name] || {};
-    Object.assign(report_tree[specs[0].file_name], report_branch);
   }
 
-  console.log(treeify.asTree(report_tree, true));
+  const report = {};
+  for (const spec of specs) {
+    let outcome;
+    if (spec.success) outcome = `✅`;
+    else if (spec.error) outcome = `❌ ${spec.error.stack}`;
+    if (outcome) set(report, `["${spec.file_name}"]["${spec.describe_name}"]["${spec.spec_name}"]`, outcome);
+  }
+
+  console.log(treeify.asTree(report, true));
 
   const exit_code = specs.find((spec) => spec.error) ? 1 : 0;
   process.exit(exit_code);
